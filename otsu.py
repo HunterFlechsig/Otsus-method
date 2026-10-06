@@ -1,7 +1,12 @@
+from pathlib import Path
+import string
+from turtle import color
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import seaborn as sns
+import argparse
+import matplotlib.image as mpimg
 
 def getImageAsArray(path: str):
     img = Image.open(path)
@@ -39,27 +44,57 @@ def findBestThreshold(img: np.ndarray):
     th_range = range(int(np.max(img)) + 1)
     criterias = [computeOtsusCriteria(img, threshold) for threshold in th_range] 
     best_threshold = th_range[np.argmin(criterias)] #argmin returns index
-    return best_threshold
+    return best_threshold, criterias
 
 def getOtsuImage(path: str):
     img = getImageAsArray(path)
-    best_threshold = findBestThreshold(img)
+    best_threshold, criterias = findBestThreshold(img)
     thresholded_img = applyImageThreshold(img, best_threshold)
-    return thresholded_img
+    return thresholded_img, criterias, best_threshold
 
-def showComparison(path: str):
-    burger_regular = getImageAsArray(path)
-    burger_otsu = getOtsuImage(path)
+def showChart(criterias, best_threshold, img, path):
+    plt.figure(figsize=(10,10))
+    th_range = range(int(np.max(img)) + 1)
+    plt.plot(th_range, criterias)
+    
+    plt.title("Otsu's Criterion vs. Threshold", fontsize=20)
+    plt.xlabel("Threshold", fontsize=16)
+    plt.ylabel("Between-Class Variance", fontsize=16)
 
-    plt.figure(figsize=(20,10))
-    plt.subplot(1,2,1)
-    plt.title("Original Image", fontsize = 20)
-    plt.imshow(burger_regular, cmap="gray")
-    plt.subplot(1,2,2)
-    plt.title("Otsu Method Image", fontsize = 20)
-    plt.imshow(burger_otsu, cmap="gray")
-    plt.tight_layout()
+    plt.axvline(x=best_threshold, color='r',  label = f'best threshold: {best_threshold}')
+
+    plt.legend()
+    plt.savefig(f'figures/{Path(path).stem}_chart.png')
     plt.show()
 
-showComparison('burger.jpg')
-showComparison('hero.jpg')
+def showComparison(path: str):
+    img_color = mpimg.imread(path)
+    img_regular = getImageAsArray(path)
+    img_otsu, criterias, best_threshold = getOtsuImage(path)
+
+    plt.figure(figsize=(30,10))
+    plt.subplot(1,3,1)
+    plt.title("Original Color Image", fontsize = 20)
+    plt.imshow(img_color)
+    plt.subplot(1,3,2)
+    plt.title("Grey Scale Image", fontsize = 20)
+    plt.imshow(img_regular, cmap="gray")
+    plt.subplot(1,3,3)
+    plt.title("Otsu Method Image", fontsize = 20)
+    plt.imshow(img_otsu, cmap="gray")
+    plt.tight_layout()
+    plt.savefig(f'figures/{Path(path).stem}_images.png')
+
+    showChart(criterias, best_threshold, img_regular, path)
+
+def main(args):
+    showComparison(args.img)
+
+def args_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--img')
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    args = args_parser()
+    main(args)
